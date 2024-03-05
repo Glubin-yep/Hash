@@ -1,56 +1,42 @@
 ﻿using System;
-using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Text;
+using System.Collections.Generic;
 
 class Program
 {
-    static void Main()
+    static void Main(string[] args)
     {
-        // Розміри вхідних даних для тестування
-        int[] inputSizes = { 2_000_000 }; // Розміри даних в байтах
+        List<string> transactions = GenerateTransactions(38);
 
-        // Хеш-функції для тестування
-        HashAlgorithm[] algorithms = {
-            new SHA1CryptoServiceProvider(),
-            new SHA256CryptoServiceProvider(),
-            new SHA384CryptoServiceProvider(),
-            new SHA512CryptoServiceProvider()
-        };
+        MerkleTree tree = new MerkleTree(transactions);
 
-        // Вимірювання часу обчислення хеш-значень
-        foreach (var algorithm in algorithms)
-        {
-            Console.WriteLine($"Testing {algorithm.GetType().Name}:");
-            foreach (var size in inputSizes)
-            {
-                Console.WriteLine($"Input size: {size} bytes");
-                string input = GenerateInput(size);
-                Stopwatch sw = Stopwatch.StartNew();
-                string hash = ComputeHash(input, algorithm);
-                sw.Stop();
-                Console.WriteLine($"Hash: {hash}");
-                Console.WriteLine($"Time elapsed: {sw.ElapsedMilliseconds} ms");
-                Console.WriteLine();
-            }
-        }
+        // Print root hash
+        Console.WriteLine("Merkle root: " + tree.GetRootHash());
+
+        // Print all nodes
+        tree.PrintAllNodes();
+
+        // Verify transaction
+        string transactionToVerify = transactions[1]; 
+        Console.WriteLine($"Transaction '{transactionToVerify}' is present: {tree.VerifyTransaction(transactionToVerify)}");
+
+        // Get proof for transaction
+        List<string> proof = tree.GetProof(transactionToVerify);    
+
+        Console.WriteLine($"Minimum number of hashes required for proof: {proof.Count}");
     }
 
-    static string GenerateInput(int size)
+    static List<string> GenerateTransactions(int count)
     {
-        StringBuilder sb = new StringBuilder();
+        List<string> transactions = new List<string>();
+
         Random random = new Random();
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < count; i++)
         {
-            sb.Append((char)random.Next(32, 127)); // Генерація випадкових символів ASCII
+            byte[] buffer = new byte[16];
+            random.NextBytes(buffer);
+            transactions.Add(BitConverter.ToString(buffer).Replace("-", ""));
         }
-        return sb.ToString();
-    }
 
-    static string ComputeHash(string input, HashAlgorithm algorithm)
-    {
-        byte[] inputBytes = Encoding.UTF8.GetBytes(input);
-        byte[] hashBytes = algorithm.ComputeHash(inputBytes);
-        return BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+        return transactions;
     }
 }
