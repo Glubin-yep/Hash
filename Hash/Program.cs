@@ -1,42 +1,51 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 
 class Program
 {
     static void Main(string[] args)
     {
-        List<string> transactions = GenerateTransactions(38);
+        // Create a list to store hashes of each frame
+        List<string> hashValues = new List<string>();
 
-        MerkleTree tree = new MerkleTree(transactions);
+        // Loop through each frame
+        for (int i = 1; i <= 22; i++)
+        {
+            Bitmap frame = new Bitmap($"image{i}.jpg"); 
+
+            string hash = CalculateFrameHash(frame);
+            hashValues.Add(hash);
+
+            frame.Dispose();
+        }
+
+        MerkleTree tree = new MerkleTree(hashValues);
 
         // Print root hash
         Console.WriteLine("Merkle root: " + tree.GetRootHash());
 
         // Print all nodes
         tree.PrintAllNodes();
-
-        // Verify transaction
-        string transactionToVerify = transactions[1]; 
-        Console.WriteLine($"Transaction '{transactionToVerify}' is present: {tree.VerifyTransaction(transactionToVerify)}");
-
-        // Get proof for transaction
-        List<string> proof = tree.GetProof(transactionToVerify);    
-
-        Console.WriteLine($"Minimum number of hashes required for proof: {proof.Count}");
     }
 
-    static List<string> GenerateTransactions(int count)
+    static string CalculateFrameHash(Bitmap frame)
     {
-        List<string> transactions = new List<string>();
-
-        Random random = new Random();
-        for (int i = 0; i < count; i++)
+        using (MemoryStream ms = new MemoryStream())
         {
-            byte[] buffer = new byte[16];
-            random.NextBytes(buffer);
-            transactions.Add(BitConverter.ToString(buffer).Replace("-", ""));
-        }
+            frame.Save(ms, ImageFormat.Jpeg);
+            byte[] frameBytes = ms.ToArray();
 
-        return transactions;
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] hashBytes = sha256.ComputeHash(frameBytes);
+                string hashSum = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+                return hashSum;
+            }
+        }
     }
 }
